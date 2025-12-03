@@ -1,0 +1,59 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Trait
+metadata:
+  name: emptydir-volume
+  namespace: default
+spec:
+  schema:
+    # Define custom type for mount configuration
+    types:
+      MountConfig:
+        containerName: "string"
+        mountPath: "string"
+        readOnly: "boolean | default=false"
+        subPath: 'string | default=""'
+
+    parameters:
+      volumeName: "string"
+      mounts: "[]MountConfig | minItems=1"
+
+    envOverrides:
+      sizeLimit: 'string | default=""'
+      medium: 'string | default=""' # "" for disk, "Memory" for tmpfs
+
+  # Patch the Deployment to add emptyDir volume
+  patches:
+    # Add emptyDir volume to pod spec
+    - target:
+        group: apps
+        version: v1
+        kind: Deployment
+      operations:
+        - op: add
+          path: /spec/template/spec/volumes/-
+          value:
+            name: ${parameters.volumeName}
+            emptyDir: |
+              ${parameters.sizeLimit != "" || parameters.medium != "" ? {
+                "sizeLimit": parameters.sizeLimit != "" ? parameters.sizeLimit : oc_omit(),
+                "medium": parameters.medium != "" ? parameters.medium : oc_omit()
+              } : {}}
+
+    # Add volumeMounts to each specified container
+    # This will be applied per mount in the mounts array
+    - forEach: ${parameters.mounts}
+      var: mount
+      target:
+        group: apps
+        version: v1
+        kind: Deployment
+      operations:
+        - op: add
+          path: /spec/template/spec/containers/[?(@.name=='${mount.containerName}')]/volumeMounts/-
+          value:
+            name: ${parameters.volumeName}
+            mountPath: ${mount.mountPath}
+            readOnly: |
+              ${has(mount.readOnly) ? mount.readOnly : false}
+            subPath: |
+              ${has(mount.subPath) ? mount.subPath : ""}

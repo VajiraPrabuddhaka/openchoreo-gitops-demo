@@ -1,0 +1,21 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: DataPlane
+metadata:
+  name: prod
+  namespace: default
+  annotations:
+    openchoreo.dev/display-name: Production DataPlane
+    openchoreo.dev/description: DataPlane for production environments
+spec:
+  agent:
+    clientCA:
+      secretRef:
+        key: ca.crt
+        name: cluster-agent-ca
+        namespace: openchoreo-control-plane
+    enabled: true
+  gateway:
+    organizationVirtualHost: openchoreoapis.internal
+    publicVirtualHost: openchoreoapis.production.localhost
+  secretStoreRef:
+    name: default

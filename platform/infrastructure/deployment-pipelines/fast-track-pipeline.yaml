@@ -1,0 +1,17 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: DeploymentPipeline
+metadata:
+  name: fast-track
+  namespace: default
+  annotations:
+    openchoreo.dev/display-name: Fast Track Pipeline
+    openchoreo.dev/description: Fast-track deployment pipeline with direct promotion from development to production
+  labels:
+    openchoreo.dev/name: fast-track
+    openchoreo.dev/organization: default
+spec:
+  promotionPaths:
+    - sourceEnvironmentRef: development
+      targetEnvironmentRefs:
+        - name: production
+          requiresApproval: true

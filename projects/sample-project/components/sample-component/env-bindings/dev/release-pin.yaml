@@ -1,0 +1,11 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleasePin
+metadata:
+  name: checkout-service-production
+  labels:
+    openchoreo.dev/component: checkout-service
+    openchoreo.dev/environment: production
+spec:
+  component: checkout-service
+  environment: development
+  releaseName: demo-app-release-20251102-1
