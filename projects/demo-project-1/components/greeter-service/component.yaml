@@ -1,0 +1,13 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: greeter-service
+spec:
+  owner:
+    projectName: demo-project-1
+  autoDeploy: true
+  componentType: deployment/http-service
+
+  parameters:
+    replicas: 2
+    port: 9090

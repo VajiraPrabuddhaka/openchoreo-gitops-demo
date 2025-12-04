@@ -7,6 +7,7 @@ This directory contains Flux resources to deploy the OpenChoreo platform configu
 - `gitrepository.yaml` - Flux GitRepository pointing to this repo
 - `namespace-org-kustomization.yaml` - Flux Kustomization for namespace and organization
 - `platform-kustomization.yaml` - Flux Kustomization for platform resources
+- `projects-kustomization.yaml` - Flux Kustomization for projects and components
 
 ## Quick Start
 
@@ -21,6 +22,9 @@ kubectl apply -f flux/namespace-org-kustomization.yaml
 
 # 3. Create platform resources (depends on namespace-org)
 kubectl apply -f flux/platform-kustomization.yaml
+
+# 4. Create projects and components (depends on platform)
+kubectl apply -f flux/projects-kustomization.yaml
 ```
 
 ## What Gets Deployed
@@ -54,6 +58,15 @@ All resources deployed to the `openchoreo` namespace:
 - fast-track
 - standard
 
+### Phase 3: Projects & Components
+All project resources deployed to the `openchoreo` namespace:
+
+**Sample Project:**
+- Component: `demo-app` (web-service)
+- Workload definitions
+- Releases (3 releases)
+- Environment bindings (dev, staging, prod)
+
 ## Verification
 
 ### Check Flux Status
@@ -79,6 +92,10 @@ kubectl get traits -n openchoreo
 kubectl get dataplanes -n openchoreo
 kubectl get environments -n openchoreo
 kubectl get deploymentpipelines -n openchoreo
+
+# Project resources
+kubectl get components -n openchoreo
+kubectl get releases -n openchoreo
 ```
 
 ## Troubleshooting
@@ -93,6 +110,7 @@ kubectl logs -n flux-system deploy/kustomize-controller --follow
 ```bash
 kubectl get kustomization -n flux-system openchoreo-namespace-org -o yaml
 kubectl get kustomization -n flux-system openchoreo-platform -o yaml
+kubectl get kustomization -n flux-system openchoreo-projects -o yaml
 ```
 
 ### Describe Resources
@@ -100,6 +118,7 @@ kubectl get kustomization -n flux-system openchoreo-platform -o yaml
 kubectl describe gitrepository -n flux-system openchoreo-gitops
 kubectl describe kustomization -n flux-system openchoreo-namespace-org
 kubectl describe kustomization -n flux-system openchoreo-platform
+kubectl describe kustomization -n flux-system openchoreo-projects
 ```
 
 ### Force Reconciliation
@@ -108,6 +127,7 @@ kubectl describe kustomization -n flux-system openchoreo-platform
 kubectl annotate gitrepository -n flux-system openchoreo-gitops reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 kubectl annotate kustomization -n flux-system openchoreo-namespace-org reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 kubectl annotate kustomization -n flux-system openchoreo-platform reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
+kubectl annotate kustomization -n flux-system openchoreo-projects reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 ```
 
 ## Resource Dependencies
@@ -119,9 +139,13 @@ GitRepository (openchoreo-gitops)
     │   ├── namespace.yaml
     │   └── organization.yaml
     │
-    └── Kustomization (openchoreo-platform)
-        └── platform/**/*.yaml
-            (depends on openchoreo-namespace-org)
+    ├── Kustomization (openchoreo-platform)
+    │   └── platform/**/*.yaml
+    │       (depends on openchoreo-namespace-org)
+    │
+    └── Kustomization (openchoreo-projects)
+        └── projects/**/kustomization.yaml (hierarchical)
+            (depends on openchoreo-platform)
 ```
 
 ## Configuration

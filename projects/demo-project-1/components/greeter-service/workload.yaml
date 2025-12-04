@@ -1,0 +1,16 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: demo-app-http-service-workload
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: demo-app-http-service
+
+  containers:
+    app:
+      image: "ghcr.io/openchoreo/samples/greeter-service:latest"
+      args:
+        - --port
+        - "9090"
