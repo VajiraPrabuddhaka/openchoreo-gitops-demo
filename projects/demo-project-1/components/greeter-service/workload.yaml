@@ -1,12 +1,11 @@
 apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
 metadata:
-  name: demo-app-http-service-workload
-  namespace: default
+  name: greeter-service-workload
 spec:
   owner:
-    projectName: default
-    componentName: demo-app-http-service
+    projectName: demo-project-1
+    componentName: greeter-service
 
   containers:
     app:
