@@ -60,10 +60,10 @@ All resources deployed to the `openchoreo` namespace:
 
 ```bash
 # Check GitRepository sync
-flux get sources git openchoreo-gitops
+kubectl get gitrepository -n flux-system openchoreo-gitops
 
 # Check Kustomizations
-flux get kustomizations
+kubectl get kustomization -n flux-system
 ```
 
 ### Check Applied Resources
@@ -83,15 +83,16 @@ kubectl get deploymentpipelines -n openchoreo
 
 ## Troubleshooting
 
-### View Flux Logs
+### View Flux Controller Logs
 ```bash
-flux logs --follow
+kubectl logs -n flux-system deploy/source-controller --follow
+kubectl logs -n flux-system deploy/kustomize-controller --follow
 ```
 
 ### Check Specific Kustomization
 ```bash
-flux get kustomization openchoreo-namespace-org
-flux get kustomization openchoreo-platform
+kubectl get kustomization -n flux-system openchoreo-namespace-org -o yaml
+kubectl get kustomization -n flux-system openchoreo-platform -o yaml
 ```
 
 ### Describe Resources
@@ -103,9 +104,10 @@ kubectl describe kustomization -n flux-system openchoreo-platform
 
 ### Force Reconciliation
 ```bash
-flux reconcile source git openchoreo-gitops
-flux reconcile kustomization openchoreo-namespace-org
-flux reconcile kustomization openchoreo-platform
+# Trigger immediate reconciliation by annotating the resource
+kubectl annotate gitrepository -n flux-system openchoreo-gitops reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
+kubectl annotate kustomization -n flux-system openchoreo-namespace-org reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
+kubectl annotate kustomization -n flux-system openchoreo-platform reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 ```
 
 ## Resource Dependencies
