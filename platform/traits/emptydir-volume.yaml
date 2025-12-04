@@ -2,7 +2,6 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: Trait
 metadata:
   name: emptydir-volume
-  namespace: default
 spec:
   schema:
     # Define custom type for mount configuration

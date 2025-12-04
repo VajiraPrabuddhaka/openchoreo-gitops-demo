@@ -1,22 +1,7 @@
 apiVersion: openchoreo.dev/v1alpha1
 kind: ComponentType
 metadata:
-  annotations:
-    helm.sh/hook: post-install, post-upgrade
-    helm.sh/hook-weight: "7"
-  creationTimestamp: "2025-12-02T11:55:42Z"
-  generation: 1
-  labels:
-    app.kubernetes.io/instance: openchoreo-control-plane
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/name: openchoreo-control-plane
-    app.kubernetes.io/part-of: openchoreo
-    app.kubernetes.io/version: latest-dev
-    helm.sh/chart: openchoreo-control-plane-0.0.0-latest-dev
   name: scheduled-task
-  namespace: default
-  resourceVersion: "1498"
-  uid: f3608ecf-36bc-48c0-b734-7da0bba10e44
 spec:
   allowedWorkflows:
     - google-cloud-buildpacks

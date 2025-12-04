@@ -2,7 +2,6 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: DataPlane
 metadata:
   name: prod
-  namespace: default
   annotations:
     openchoreo.dev/display-name: Production DataPlane
     openchoreo.dev/description: DataPlane for production environments

@@ -1,0 +1,10 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Organization
+metadata:
+  name: openchoreo
+  annotations:
+    openchoreo.dev/display-name: openchoreo Organization
+    openchoreo.dev/description: openchoreo organization for openchoreo-gitops-demo
+  labels:
+    openchoreo.dev/name: openchoreo
+spec: {}
