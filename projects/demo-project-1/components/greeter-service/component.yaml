@@ -5,7 +5,6 @@ metadata:
 spec:
   owner:
     projectName: demo-project-1
-  autoDeploy: true
   componentType: deployment/http-service
 
   parameters:
