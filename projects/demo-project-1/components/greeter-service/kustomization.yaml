@@ -7,6 +7,7 @@ resources:
   - workload.yaml
 
   # Component Releases
+  - releases/greeter-service-20251205-1.yaml
 
   # Release Bindings
-#  - release-bindings/dev-environment.yaml
+  - release-bindings/greeter-service-development.yaml
