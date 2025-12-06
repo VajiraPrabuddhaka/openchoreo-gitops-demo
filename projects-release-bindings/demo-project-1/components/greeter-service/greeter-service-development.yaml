@@ -2,7 +2,6 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: ReleaseBinding
 metadata:
   name: greeter-service-development
-  namespace: openchoreo
 spec:
   environment: development
   owner:
