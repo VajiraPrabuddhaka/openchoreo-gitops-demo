@@ -9,7 +9,40 @@ OpenChoreo is an internal developer platform built on Kubernetes. This repositor
 ## Repository Structure
 
 ```
-
+./
+├── namespace.yaml                    # Namespace definition
+├── organization.yaml                 # Organization CRD
+├── kustomization.yaml               # Root: namespace + organization
+│
+├── platform/                        # Platform-level resources
+│   ├── kustomization.yaml
+│   ├── component-types/             # ComponentType definitions
+│   ├── traits/                      # Trait definitions
+│   └── infrastructure/              # DataPlanes, Environments, Pipelines
+│
+├── projects/                        # Project resources (Components, Releases)
+│   ├── kustomization.yaml
+│   └── demo-project-1/
+│       ├── project.yaml
+│       └── components/
+│           └── greeter-service/
+│               ├── component.yaml
+│               ├── workload.yaml
+│               └── releases/
+│
+├── projects-release-bindings/       # ReleaseBindings (separate for webhook compatibility)
+│   ├── kustomization.yaml
+│   └── demo-project-1/
+│       └── components/
+│           └── greeter-service/
+│               └── greeter-service-development.yaml
+│
+└── flux/                           # Flux CD resources (applied manually)
+    ├── gitrepository.yaml
+    ├── namespace-org-kustomization.yaml
+    ├── platform-kustomization.yaml
+    ├── projects-kustomization.yaml
+    └── projects-release-bindings-kustomization.yaml
 ```
 
 ## Prerequisites
@@ -34,8 +67,11 @@ kubectl apply -f flux/namespace-org-kustomization.yaml
 # 3. Create platform resources
 kubectl apply -f flux/platform-kustomization.yaml
 
-# 4. Create projects and components
+# 4. Create projects and components (ComponentReleases)
 kubectl apply -f flux/projects-kustomization.yaml
+
+# 5. Create release bindings (must be after step 4)
+kubectl apply -f flux/projects-release-bindings-kustomization.yaml
 ```
 
 ### What Gets Deployed
@@ -82,9 +118,10 @@ kubectl get components,releases -n openchoreo
 1. **Flux watches this Git repository** via the GitRepository resource
 2. **Namespace & Organization** are created first (via `namespace-org-kustomization.yaml`)
 3. **Platform resources** are created next (via `platform-kustomization.yaml`) with dependency on step 2
-4. **Project resources** are created last (via `projects-kustomization.yaml`) with dependency on step 3
-5. **Automatic sync** happens based on the configured interval (5-10 minutes)
-6. **Changes pushed to Git** are automatically applied to the cluster
+4. **Project resources** are created (via `projects-kustomization.yaml`) with dependency on step 3
+5. **Release bindings** are created last (via `projects-release-bindings-kustomization.yaml`) with dependency on step 4
+6. **Automatic sync** happens based on the configured interval (5 minutes)
+7. **Changes pushed to Git** are automatically applied to the cluster
 
 ### Kustomize Integration
 
@@ -97,7 +134,31 @@ The repository uses Kustomize to:
 ### Resource Dependencies
 
 ```
+GitRepository (openchoreo-gitops)
+       │
+       ▼
+Kustomization (openchoreo-namespace-org)     → namespace, organization
+       │
+       ▼
+Kustomization (openchoreo-platform)          → componenttypes, traits, dataplanes, environments, pipelines
+       │
+       ▼
+Kustomization (openchoreo-projects)          → projects, components, workloads, componentreleases
+       │
+       ▼
+Kustomization (openchoreo-projects-release-bindings) → releasebindings
 ```
+
+### Why ReleaseBindings Are Separate
+
+ReleaseBindings are managed in a separate Flux Kustomization (`projects-release-bindings/`) due to OpenChoreo's validating admission webhook. The webhook validates that the `ComponentRelease` referenced by a `ReleaseBinding` exists before allowing creation.
+
+When Flux applies resources, it performs a server-side dry-run first. If `ComponentRelease` and `ReleaseBinding` are in the same Kustomization, the dry-run may validate the `ReleaseBinding` before the `ComponentRelease` exists, causing the webhook to reject it.
+
+By splitting them into separate Kustomizations with a dependency chain, we ensure:
+1. `ComponentRelease` resources are fully created first
+2. `ReleaseBinding` resources are only applied after step 1 completes
+3. The webhook validation passes because the referenced release exists
 
 ## Making Changes
 
@@ -117,9 +178,16 @@ The repository uses Kustomize to:
 
 **New Component:**
 1. Create a component directory under `projects/<project-name>/components/`
-2. Create a `kustomization.yaml` listing all component resources
+2. Create a `kustomization.yaml` listing component resources (component, workload, releases)
 3. Add the component directory to the project's `kustomization.yaml`
 4. Commit and push to the repository
+
+**New ReleaseBinding:**
+1. Create the ReleaseBinding YAML file (do NOT include `namespace:` field)
+2. Place it in `projects-release-bindings/<project-name>/components/<component-name>/`
+3. Update the component's `kustomization.yaml` in `projects-release-bindings/` to include it
+4. Ensure the referenced `ComponentRelease` exists in `projects/<project-name>/components/<component-name>/releases/`
+5. Commit and push to the repository
 
 ### Modifying Existing Resources
 
@@ -151,6 +219,7 @@ kubectl describe gitrepository -n flux-system openchoreo-gitops
 kubectl describe kustomization -n flux-system openchoreo-namespace-org
 kubectl describe kustomization -n flux-system openchoreo-platform
 kubectl describe kustomization -n flux-system openchoreo-projects
+kubectl describe kustomization -n flux-system openchoreo-projects-release-bindings
 ```
 
 ### Common Issues
