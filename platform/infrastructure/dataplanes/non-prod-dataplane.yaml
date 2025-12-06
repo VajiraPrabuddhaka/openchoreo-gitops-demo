@@ -11,7 +11,7 @@ spec:
       secretRef:
         key: ca.crt
         name: cluster-agent-ca
-        namespace: openchoreo-control-plane
+        namespace: non-prod-dataplane
     enabled: true
   gateway:
     organizationVirtualHost: openchoreoapis.internal
