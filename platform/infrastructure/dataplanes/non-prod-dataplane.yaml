@@ -10,7 +10,7 @@ spec:
     clientCA:
       secretRef:
         key: ca.crt
-        name: cluster-agent-ca
+        name: cluster-agent-tls
         namespace: non-prod-dataplane
     enabled: true
   gateway:
