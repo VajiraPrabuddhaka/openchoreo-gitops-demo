@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   # Release Bindings
   - product-api-development.yaml
+  - product-api-staging.yaml

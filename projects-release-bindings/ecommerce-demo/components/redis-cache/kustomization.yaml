@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   # Release Bindings
   - redis-cache-development.yaml
+  - redis-cache-staging.yaml

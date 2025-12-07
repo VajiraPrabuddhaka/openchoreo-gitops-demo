@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   # Release Bindings
   - order-api-development.yaml
+  - order-api-staging.yaml

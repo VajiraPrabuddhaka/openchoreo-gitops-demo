@@ -1,0 +1,10 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: order-api-staging
+spec:
+  environment: staging
+  owner:
+    componentName: order-api
+    projectName: ecommerce-demo
+  releaseName: order-api-20251206-1

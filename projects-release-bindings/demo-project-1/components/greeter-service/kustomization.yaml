@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   # Release Bindings
   - greeter-service-development.yaml
+  - greeter-service-staging.yaml
