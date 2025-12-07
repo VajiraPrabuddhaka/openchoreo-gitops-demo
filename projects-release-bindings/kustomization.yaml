@@ -12,3 +12,4 @@ resources:
   # These are managed separately to ensure ComponentReleases exist first
   # (OpenChoreo validating webhook requires the referenced ComponentRelease to exist)
   - demo-project-1/
+  - ecommerce-demo/

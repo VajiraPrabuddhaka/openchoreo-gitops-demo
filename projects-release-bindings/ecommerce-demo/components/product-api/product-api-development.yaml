@@ -1,0 +1,10 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: product-api-development
+spec:
+  environment: development
+  owner:
+    componentName: product-api
+    projectName: ecommerce-demo
+  releaseName: product-api-20251206-1
