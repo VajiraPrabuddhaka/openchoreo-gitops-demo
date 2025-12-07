@@ -1,0 +1,6 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Project
+metadata:
+  name: ecommerce-demo
+spec:
+  deploymentPipelineRef: standard

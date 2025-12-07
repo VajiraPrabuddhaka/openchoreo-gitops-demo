@@ -10,3 +10,4 @@ labels:
 resources:
   # Projects
   - demo-project-1/
+  - ecommerce-demo/

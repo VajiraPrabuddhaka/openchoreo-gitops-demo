@@ -1,0 +1,12 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: order-api-workload
+spec:
+  owner:
+    projectName: ecommerce-demo
+    componentName: order-api
+
+  containers:
+    app:
+      image: "nginx:alpine"

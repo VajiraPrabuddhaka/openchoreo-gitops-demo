@@ -1,0 +1,12 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: order-api
+spec:
+  owner:
+    projectName: ecommerce-demo
+  componentType: deployment/http-service
+
+  parameters:
+    replicas: 2
+    port: 80
