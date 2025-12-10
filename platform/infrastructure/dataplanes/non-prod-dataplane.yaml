@@ -2,6 +2,7 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: DataPlane
 metadata:
   name: non-prod
+  namespace: openchoreo
   annotations:
     openchoreo.dev/display-name: Non-Production DataPlane
     openchoreo.dev/description: DataPlane for non-production environments (dev, staging)
