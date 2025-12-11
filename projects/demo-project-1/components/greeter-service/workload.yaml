@@ -2,6 +2,7 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
 metadata:
   name: greeter-service-workload
+  namespace: openchoreo
 spec:
   owner:
     projectName: demo-project-1

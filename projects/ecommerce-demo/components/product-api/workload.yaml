@@ -2,6 +2,7 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
 metadata:
   name: product-api-workload
+  namespace: openchoreo
 spec:
   owner:
     projectName: ecommerce-demo

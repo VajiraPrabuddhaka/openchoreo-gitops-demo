@@ -1,0 +1,11 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: greeter-service-development
+  namespace: openchoreo
+spec:
+  environment: development
+  owner:
+    componentName: greeter-service
+    projectName: demo-project-1
+  releaseName: greeter-service-20251205-1
