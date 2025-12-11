@@ -7,8 +7,6 @@ spec:
   interval: 5m
   path: ./platform
   prune: true
-  kustomize:
-    build: false
   sourceRef:
     kind: GitRepository
     name: openchoreo-gitops
