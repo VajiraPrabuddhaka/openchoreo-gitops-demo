@@ -9,7 +9,6 @@ This is a **GitOps repository** for managing OpenChoreo platform resources using
 ### Key Technologies
 - **OpenChoreo**: An internal developer platform built on Kubernetes
 - **Flux CD**: GitOps tool that watches this repository and applies changes to Kubernetes
-- **Kustomize**: Tool for customizing Kubernetes configurations (built into kubectl)
 - **Kubernetes**: The underlying platform
 
 ## Architecture & Design Decisions
@@ -20,39 +19,103 @@ This is a **GitOps repository** for managing OpenChoreo platform resources using
 - No manual `kubectl apply` needed after initial Flux setup
 - Changes are made by committing to Git, not by directly modifying the cluster
 
-### 2. Namespace Strategy
+### 2. Directory-Based Resource Discovery
+- Flux recursively discovers and applies all YAML files in each directory
+- **No Kustomize files** are used in this repository
+- Resources must include their own `namespace` field when required
+- This simplifies resource management - just add YAML files to the appropriate directory
+
+### 3. Namespace Strategy
 - **Organization**: `openchoreo` (cluster-scoped resource)
-- **Namespace**: `openchoreo` (where all platform resources live)
+- **Namespace**: `openchoreo` (where all platform and project resources live)
 - Organization name logically maps to namespace name
-- All platform resources are deployed to the `openchoreo` namespace
+- All namespaced resources explicitly specify `namespace: openchoreo`
 
-### 3. Kustomize Usage
-- **Root kustomization** (`./kustomization.yaml`): Applies namespace and organization
-- **Platform kustomization** (`./platform/kustomization.yaml`): Applies all platform resources
-  - Sets `namespace: openchoreo` for all resources
-  - Adds common label `openchoreo.dev/organization: openchoreo` to all resources
-  - Resource files do NOT have hardcoded namespaces (managed by Kustomize)
+### 4. Three-Phase Deployment
+The repository uses three Flux Kustomizations with dependencies to ensure proper ordering:
 
-### 4. Flux Resource Hierarchy
 ```
 GitRepository (openchoreo-gitops)
   └─> Points to: https://github.com/VajiraPrabuddhaka/openchoreo-gitops-demo
       Branch: main
 
-Kustomization (openchoreo-namespace-org)
-  └─> Path: ./
+Phase 1: Kustomization (openchoreo-namespace-org)
+  └─> Path: ./organization
   └─> Creates: namespace + organization
   └─> No dependencies
 
-Kustomization (openchoreo-platform)
+Phase 2: Kustomization (openchoreo-platform)
   └─> Path: ./platform
-  └─> Creates: all platform resources
+  └─> Creates: component types, traits, dataplanes, environments, pipelines
   └─> Depends on: openchoreo-namespace-org
+
+Phase 3: Kustomization (openchoreo-projects)
+  └─> Path: ./projects
+  └─> Creates: projects, components, workloads, releases, release bindings
+  └─> Depends on: openchoreo-platform
+```
+
+## Directory Structure
+
+```
+./
+├── organization/                        # Namespace and organization resources
+│   ├── namespace.yaml                   # Namespace definition
+│   └── organization.yaml                # Organization CRD
+│
+├── platform/                            # Platform-level resources
+│   ├── component-types/                 # ComponentType definitions
+│   │   ├── http-service.yaml
+│   │   ├── scheduled-task.yaml
+│   │   └── web-app.yaml
+│   ├── traits/                          # Trait definitions
+│   │   ├── persistent-volume.yaml
+│   │   └── emptydir-volume.yaml
+│   └── infrastructure/                  # Infrastructure resources
+│       ├── dataplanes/
+│       │   ├── non-prod-dataplane.yaml
+│       │   └── prod-dataplane.yaml
+│       ├── environments/
+│       │   ├── dev-environment.yaml
+│       │   ├── staging-environment.yaml
+│       │   └── prod-environment.yaml
+│       └── deployment-pipelines/
+│           ├── fast-track-pipeline.yaml
+│           └── standard-pipeline.yaml
+│
+├── projects/                            # Project resources
+│   ├── demo-project-1/
+│   │   ├── project.yaml                 # Project definition
+│   │   └── components/
+│   │       └── greeter-service/
+│   │           ├── component.yaml       # Component definition
+│   │           ├── workload.yaml        # Workload specification
+│   │           ├── releases/            # ComponentRelease resources
+│   │           │   └── greeter-service-20251205-1.yaml
+│   │           └── release-bindings/    # ReleaseBinding resources
+│   │               ├── greeter-service-development.yaml
+│   │               └── greeter-service-staging.yaml
+│   └── ecommerce-demo/
+│       ├── project.yaml
+│       └── components/
+│           ├── order-api/
+│           ├── product-api/
+│           └── redis-cache/
+│
+├── flux/                                # Flux CD resources (applied manually)
+│   ├── README.md
+│   ├── gitrepository.yaml
+│   ├── namespace-org-kustomization.yaml
+│   ├── platform-kustomization.yaml
+│   └── projects-kustomization.yaml
+│
+├── README.md
+└── CLAUDE.md
 ```
 
 ## OpenChoreo Custom Resource Definitions (CRDs)
 
-### Resource Types
+### Platform-Level Resources
 
 1. **Organization** (cluster-scoped)
    - Represents a tenant/organization
@@ -86,74 +149,66 @@ Kustomization (openchoreo-platform)
    - Examples: `fast-track`, `standard`
    - Specifies which environments can promote to which, with approval requirements
 
+### Project-Level Resources
+
+7. **Project** (namespaced)
+   - Groups related components together
+   - References a DeploymentPipeline
+   - Example: `demo-project-1`, `ecommerce-demo`
+
+8. **Component** (namespaced)
+   - Represents an application component
+   - References a ComponentType and owner Project
+   - Contains component parameters (replicas, port, etc.)
+
+9. **Workload** (namespaced)
+   - Defines the container image and configuration for a Component
+   - Contains container specifications
+
+10. **ComponentRelease** (namespaced)
+    - Represents a versioned release of a component
+    - Contains release metadata and version information
+
+11. **ReleaseBinding** (namespaced)
+    - Binds a ComponentRelease to an Environment
+    - Links a specific release to a deployment target
+
 ### Important Labels & Annotations
 
 **Labels:**
-- `openchoreo.dev/organization: <org-name>` - Links resource to organization (applied by Kustomize)
+- `openchoreo.dev/organization: <org-name>` - Links resource to organization
 - `openchoreo.dev/name: <resource-name>` - Resource identifier
 
 **Annotations:**
 - `openchoreo.dev/display-name: <name>` - Human-readable name
 - `openchoreo.dev/description: <desc>` - Resource description
 
-## Directory Structure
-
-```
-./
-├── namespace.yaml                    # Namespace definition (managed by root kustomization)
-├── organization.yaml                 # Organization CRD (managed by root kustomization)
-├── kustomization.yaml               # Root: namespace + organization
-│
-├── platform/                        # Platform-level resources
-│   ├── kustomization.yaml          # Sets namespace + labels for all platform resources
-│   ├── component-types/
-│   │   ├── services/
-│   │   │   └── http-service.yaml
-│   │   ├── tasks/
-│   │   │   └── scheduled-task.yaml
-│   │   └── webapps/
-│   │       └── web-app.yaml
-│   ├── traits/
-│   │   ├── persistent-volume.yaml
-│   │   └── emptydir-volume.yaml
-│   └── infrastructure/
-│       ├── dataplanes/
-│       │   ├── non-prod-dataplane.yaml
-│       │   └── prod-dataplane.yaml
-│       ├── environments/
-│       │   ├── dev-environment.yaml
-│       │   ├── staging-environment.yaml
-│       │   └── prod-environment.yaml
-│       └── deployment-pipelines/
-│           ├── fast-track-pipeline.yaml
-│           └── standard-pipeline.yaml
-│
-├── projects/                        # Project-specific resources (future)
-│   └── sample-project/
-│
-└── flux/                           # Flux CD resources (NOT managed by Flux)
-    ├── README.md
-    ├── gitrepository.yaml
-    ├── namespace-org-kustomization.yaml
-    └── platform-kustomization.yaml
-```
-
 ## Important Patterns & Conventions
 
-### 1. No Hardcoded Namespaces
-- Resource files in `platform/` do NOT specify `namespace:` in metadata
-- Namespace is set by `platform/kustomization.yaml`
-- Exception: Template variables like `${metadata.namespace}` in ComponentType templates are kept
+### 1. Explicit Namespaces
+- All namespaced resources MUST include `namespace: openchoreo` in their metadata
+- This is required because the repository does not use Kustomize for namespace injection
+- Exception: Organization is cluster-scoped and has no namespace
 
-### 2. No Hardcoded Organization Labels
-- The label `openchoreo.dev/organization: openchoreo` is NOT in resource files
-- It's applied by `platform/kustomization.yaml` using the `labels` field
-- Resource-specific labels (like `openchoreo.dev/name`) are kept in files
-
-### 3. Resource Naming
+### 2. Resource Naming
 - Files named after the resource: `http-service.yaml`, `staging-environment.yaml`
 - Resource names match file names (without extension)
 - Use lowercase with hyphens
+
+### 3. Project Structure Convention
+Each project follows this structure:
+```
+projects/<project-name>/
+├── project.yaml                    # Project resource
+└── components/
+    └── <component-name>/
+        ├── component.yaml          # Component resource
+        ├── workload.yaml           # Workload resource
+        ├── releases/               # ComponentRelease resources
+        │   └── <release-name>.yaml
+        └── release-bindings/       # ReleaseBinding resources
+            └── <binding-name>.yaml
+```
 
 ### 4. Flux Resources Location
 - Flux resources are in `flux/` directory
@@ -165,47 +220,57 @@ Kustomization (openchoreo-platform)
 ### Adding a New Platform Resource
 
 1. Create YAML file in appropriate subdirectory under `platform/`
-2. Do NOT include `namespace:` or `openchoreo.dev/organization` label
-3. Add the file path to `platform/kustomization.yaml` under `resources:`
-4. Commit and push - Flux will automatically apply
+2. Include `namespace: openchoreo` in metadata
+3. Commit and push - Flux will automatically discover and apply
+
+### Adding a New Project
+
+1. Create project directory: `projects/<project-name>/`
+2. Create `project.yaml` with the Project resource
+3. Create `components/` subdirectory for components
+4. Commit and push - Flux will automatically discover and apply
+
+### Adding a New Component
+
+1. Create component directory: `projects/<project-name>/components/<component-name>/`
+2. Create `component.yaml` with Component resource
+3. Create `workload.yaml` with Workload resource
+4. Create `releases/` and `release-bindings/` subdirectories
+5. Add release and binding resources as needed
+6. Commit and push - Flux will automatically discover and apply
+
+### Adding a New Release
+
+1. Create release file in `projects/<project-name>/components/<component-name>/releases/`
+2. Use naming convention: `<component-name>-<date>-<version>.yaml`
+3. Commit and push
+
+### Adding a Release Binding
+
+1. Create binding file in `projects/<project-name>/components/<component-name>/release-bindings/`
+2. Use naming convention: `<component-name>-<environment>.yaml`
+3. Reference the appropriate release and environment
+4. Commit and push
 
 ### Modifying an Existing Resource
 
 1. Edit the resource file directly
-2. Do NOT add `namespace:` or change organization labels
-3. Commit and push - Flux will automatically apply
-
-### Changing Organization/Namespace
-
-1. Update `namespace.yaml` with new namespace name
-2. Update `organization.yaml` with new organization name
-3. Update `platform/kustomization.yaml`:
-   - Change `namespace:` field
-   - Change `labels.openchoreo.dev/organization` value
-4. Update environment labels if they reference the organization
-5. Commit all changes together
-
-### Testing Kustomize Build Locally
-
-```bash
-# Test root kustomization
-kubectl kustomize .
-
-# Test platform kustomization
-kubectl kustomize ./platform
-
-# See what would be applied
-kubectl kustomize ./platform | kubectl diff -f -
-```
+2. Commit and push - Flux will automatically apply the changes
 
 ### Force Flux to Sync Immediately
 
 ```bash
-# Annotate to trigger reconciliation
+# Trigger reconciliation for all resources
 kubectl annotate gitrepository -n flux-system openchoreo-gitops \
   reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 
+kubectl annotate kustomization -n flux-system openchoreo-namespace-org \
+  reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
+
 kubectl annotate kustomization -n flux-system openchoreo-platform \
+  reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
+
+kubectl annotate kustomization -n flux-system openchoreo-projects \
   reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 ```
 
@@ -216,15 +281,15 @@ kubectl annotate kustomization -n flux-system openchoreo-platform \
 - They are cluster-wide resources
 - Only one organization per cluster in this setup
 
-### 2. Health Checks Removed
+### 2. No Kustomize Files
+- This repository does NOT use `kustomization.yaml` files
+- Flux discovers resources directly from directory contents
+- All resources must be self-contained with explicit namespaces
+
+### 3. Health Checks Removed
 - Flux Kustomizations DO NOT include `healthChecks`
 - OpenChoreo CRDs may not have status conditions that Flux can check
 - Resources are considered applied when created, not when "ready"
-
-### 3. No Flux CLI Dependency
-- All documentation uses `kubectl` commands
-- No `flux` CLI commands in READMEs
-- Flux CLI is convenient but not required
 
 ### 4. Prune Enabled
 - Flux Kustomizations have `prune: true`
@@ -232,28 +297,29 @@ kubectl annotate kustomization -n flux-system openchoreo-platform \
 - Be careful when removing resources
 
 ### 5. Cross-Namespace References
-- Some resources reference other namespaces (e.g., `openchoreo-control-plane`)
+- Some resources reference other namespaces (e.g., `openchoreo-control-plane`, `openchoreo-data-plane`)
 - These are intentional and should NOT be changed to `openchoreo`
 - Example: DataPlane references secrets in `openchoreo-control-plane` namespace
+- Example: HTTPRoute references gateway in `openchoreo-data-plane` namespace
 
 ## Design Rationale
 
-### Why Separate Flux Resources?
-- Flux resources (`flux/`) configure Flux itself
-- They are applied manually once
-- They are NOT managed by Flux (bootstrap problem)
-- Rest of the repository IS managed by Flux
+### Why Separate Organization Directory?
+- Keeps namespace and organization resources isolated
+- Clear separation of concerns
+- Enables independent lifecycle management
 
-### Why Two Kustomizations?
+### Why Three Kustomizations?
 1. **namespace-org**: Creates namespace and organization first
 2. **platform**: Creates platform resources that depend on namespace existing
-3. Ensures proper ordering without race conditions
+3. **projects**: Creates project resources that depend on platform resources
+4. Ensures proper ordering without race conditions
 
-### Why Kustomize for Labels?
-- Keeps resource files clean and focused on their core definition
-- Makes it easy to change organization name (one place)
-- Follows DRY principle
-- Standard Kustomize pattern
+### Why No Kustomize Files?
+- Simpler resource management - just add YAML files
+- Flux handles directory-based discovery automatically
+- Each resource is self-contained and explicit
+- Easier to understand what gets deployed
 
 ### Why No Health Checks?
 - OpenChoreo CRDs may not implement status conditions
@@ -264,24 +330,54 @@ kubectl annotate kustomization -n flux-system openchoreo-platform \
 ## Troubleshooting Hints
 
 ### Flux Not Applying Changes
-- Check GitRepository sync status
+- Check GitRepository sync status: `kubectl get gitrepository -n flux-system`
 - Verify branch name is correct (`main`)
 - Check Flux controller logs
-- Ensure kustomization doesn't have errors
+- Ensure kustomizations don't have errors
 
-### Kustomization Failing
-- Run `kubectl kustomize ./platform` locally to test
-- Look for YAML syntax errors
-- Verify all files listed in `resources:` exist
-- Check for duplicate resource names
+### Resources Not Appearing
+- Verify YAML files are valid
+- Check that namespace is included in resource metadata
+- Look at Flux Kustomization status for errors
+- Run: `kubectl describe kustomization -n flux-system openchoreo-projects`
 
-### Resources Missing Namespace
-- Verify `platform/kustomization.yaml` has `namespace:` field
-- Ensure resource file doesn't have conflicting `namespace:` in metadata
+### Dependency Issues
+- Ensure resources are in the correct directory for their phase
+- Platform resources belong in `platform/`
+- Project resources belong in `projects/`
+- Namespace/org belong in `organization/`
 
-### Wrong Organization Label
-- Check `platform/kustomization.yaml` has correct `labels:` section
-- Ensure resource files don't have conflicting labels
+### Common Issues
+
+**Resources missing namespace:**
+- Add `namespace: openchoreo` to the resource metadata
+- Exception: Organization is cluster-scoped
+
+**Release binding not working:**
+- Verify the referenced release exists
+- Check that the environment name is correct
+- Ensure component name matches
+
+## Verification Commands
+
+```bash
+# Check Flux resources
+kubectl get gitrepository -n flux-system
+kubectl get kustomization -n flux-system
+
+# Check OpenChoreo platform resources
+kubectl get organizations
+kubectl get namespaces openchoreo
+kubectl get componenttypes,traits,dataplanes,environments,deploymentpipelines -n openchoreo
+
+# Check project resources
+kubectl get projects,components,workloads -n openchoreo
+kubectl get componentreleases,releasebindings -n openchoreo
+
+# View Flux logs
+kubectl logs -n flux-system deploy/source-controller --follow
+kubectl logs -n flux-system deploy/kustomize-controller --follow
+```
 
 ## Working with Claude
 
@@ -289,9 +385,10 @@ When asking Claude to help with this repository:
 
 ### Good Prompts
 - "Add a new environment called 'qa' based on staging"
+- "Create a new project with a component"
+- "Add a release binding for staging environment"
 - "Update the prod dataplane to use a different gateway host"
 - "Create a new component type for a cron job"
-- "Why is my kustomization failing?"
 
 ### Provide Context
 - Mention which resource type you're working with
@@ -299,22 +396,20 @@ When asking Claude to help with this repository:
 - Indicate if you want to test locally first or push to Git
 
 ### Claude Should Remember
-- Never add hardcoded namespaces to platform resources
-- Never add organization labels manually to resource files
-- Always update `platform/kustomization.yaml` when adding new resources
-- Use `kubectl` commands, not `flux` CLI commands in documentation
+- Always add `namespace: openchoreo` to namespaced resources
 - Organization is cluster-scoped (no namespace field)
+- No Kustomize files - resources are discovered directly
+- Use `kubectl` commands, not `flux` CLI commands in documentation
+- Follow the project structure convention for new projects/components
 - Templates in ComponentTypes use `${...}` expressions
 
 ## Related Documentation
 
 - `README.md` - Main repository documentation for users
 - `flux/README.md` - Detailed Flux setup and troubleshooting
-- OpenChoreo repo: `/Users/vajira/wso2-dev-work/git-repos/choreo` (in workspace)
 
 ## Version Information
 
-- **Kustomize API Version**: `kustomize.config.k8s.io/v1beta1`
 - **Flux API Versions**:
   - GitRepository: `source.toolkit.fluxcd.io/v1`
   - Kustomization: `kustomize.toolkit.fluxcd.io/v1`
