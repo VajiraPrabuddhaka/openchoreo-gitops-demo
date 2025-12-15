@@ -11,4 +11,4 @@ spec:
     kind: GitRepository
     name: openchoreo-gitops
   dependsOn:
-    - name: openchoreo-platform
+    - name: openchoreo-namespace-org
