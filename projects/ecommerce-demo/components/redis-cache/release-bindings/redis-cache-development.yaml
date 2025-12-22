@@ -8,4 +8,4 @@ spec:
   owner:
     componentName: redis-cache
     projectName: ecommerce-demo
-  releaseName: redis-cache-20251206-1
+  releaseName: redis-cache-20251222-1

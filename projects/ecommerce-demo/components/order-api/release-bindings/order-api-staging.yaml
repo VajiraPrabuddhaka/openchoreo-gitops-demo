@@ -8,4 +8,4 @@ spec:
   owner:
     componentName: order-api
     projectName: ecommerce-demo
-  releaseName: order-api-20251206-1
+  releaseName: order-api-20251222-1

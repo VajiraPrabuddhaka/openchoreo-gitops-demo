@@ -8,4 +8,4 @@ spec:
   owner:
     componentName: product-api
     projectName: ecommerce-demo
-  releaseName: product-api-20251206-1
+  releaseName: product-api-20251222-1
