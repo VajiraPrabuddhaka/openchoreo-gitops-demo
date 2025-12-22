@@ -7,13 +7,12 @@ metadata:
     openchoreo.dev/display-name: Non-Production DataPlane
     openchoreo.dev/description: DataPlane for non-production environments (dev, staging)
 spec:
-  agent:
+  clusterAgent:
     clientCA:
       secretRef:
         key: ca.crt
         name: cluster-agent-tls
         namespace: non-prod-dataplane
-    enabled: true
   gateway:
     organizationVirtualHost: openchoreoapis.internal
     publicVirtualHost: openchoreoapis.localhost

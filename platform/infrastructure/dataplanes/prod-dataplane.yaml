@@ -7,13 +7,12 @@ metadata:
     openchoreo.dev/display-name: Production DataPlane
     openchoreo.dev/description: DataPlane for production environments
 spec:
-  agent:
+  clusterAgent:
     clientCA:
       secretRef:
         key: ca.crt
         name: cluster-agent-ca
         namespace: prod-dataplane
-    enabled: true
   gateway:
     organizationVirtualHost: openchoreoapis.internal
     publicVirtualHost: openchoreoapis.production.localhost

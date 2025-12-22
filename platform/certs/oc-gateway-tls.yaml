@@ -1,0 +1,12 @@
+#apiVersion: cert-manager.io/v1
+#kind: Certificate
+#metadata:
+#  name: openchoreo-gateway-tls
+#  namespace:
+#spec:
+#  secretName: openchoreo-gateway-tls
+#  issuerRef:
+#    name: openchoreo-selfsigned-issuer
+#    kind: ClusterIssuer
+#  dnsNames:
+#    - "*.openchoreoapis.localhost"
