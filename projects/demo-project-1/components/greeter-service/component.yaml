@@ -12,4 +12,4 @@ spec:
     replicas: 2
     port: 9090
     containerName: app
-
+    exposed: true
