@@ -26,8 +26,8 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: ${parameters.size}
-          storageClassName: ${parameters.storageClass}
+              storage: ${envOverrides.size}
+          storageClassName: ${envOverrides.storageClass}
 
   patches:
     - target:
