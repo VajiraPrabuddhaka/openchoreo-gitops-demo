@@ -4,190 +4,147 @@ metadata:
   name: scheduled-task
   namespace: openchoreo
 spec:
+  workloadType: cronjob
+
   allowedWorkflows:
     - google-cloud-buildpacks
     - docker
+
+  schema:
+    types:
+      ResourceRequirements:
+        requests: "ResourceQuantity | default={}"
+        limits: "ResourceQuantity | default={}"
+      ResourceQuantity:
+        cpu: "string | default=100m"
+        memory: "string | default=128Mi"
+
+    parameters:
+      successfulJobsHistoryLimit: "integer | default=3"
+      failedJobsHistoryLimit: "integer | default=1"
+      concurrencyPolicy: "string | default=Forbid"
+      backoffLimit: "integer | default=3"
+      activeDeadlineSeconds: "integer | default=300"
+      restartPolicy: "string | default=OnFailure"
+      imagePullPolicy: "string | default=IfNotPresent"
+      containerName: "string | default=main"
+
+    envOverrides:
+      schedule: 'string | default="0 0 31 2 *"' # will never execute
+      resources: "ResourceRequirements | default={}"
+
   resources:
     - id: cronjob
       template:
         apiVersion: batch/v1
         kind: CronJob
         metadata:
-          labels: ${metadata.labels}
           name: ${metadata.name}
           namespace: ${metadata.namespace}
+          labels: ${metadata.labels}
         spec:
-          concurrencyPolicy: ${parameters.concurrencyPolicy}
+          schedule: ${envOverrides.schedule}
+          successfulJobsHistoryLimit: ${parameters.successfulJobsHistoryLimit}
           failedJobsHistoryLimit: ${parameters.failedJobsHistoryLimit}
+          concurrencyPolicy: ${parameters.concurrencyPolicy}
           jobTemplate:
             metadata:
               labels: ${metadata.labels}
             spec:
-              activeDeadlineSeconds: ${parameters.activeDeadlineSeconds}
               backoffLimit: ${parameters.backoffLimit}
+              activeDeadlineSeconds: ${parameters.activeDeadlineSeconds}
               template:
                 metadata:
                   labels: ${metadata.podSelectors}
                 spec:
+                  restartPolicy: ${parameters.restartPolicy}
                   containers:
-                    - args: |
-                        ${has(workload.containers[parameters.containerName].args) ? workload.containers[parameters.containerName].args : oc_omit()}
-                      command: |
-                        ${has(workload.containers[parameters.containerName].command) ? workload.containers[parameters.containerName].command : oc_omit()}
-                      envFrom: |
-                        ${(has(configurations[parameters.containerName].configs.envs) && configurations[parameters.containerName].configs.envs.size() > 0 ?
-                          [{
-                            "configMapRef": {
-                              "name": oc_generate_name(metadata.name, "env-configs")
-                            }
-                          }] : []) +
-                         (has(configurations[parameters.containerName].secrets.envs) && configurations[parameters.containerName].secrets.envs.size() > 0 ?
-                          [{
-                            "secretRef": {
-                              "name": oc_generate_name(metadata.name, "env-secrets")
-                            }
-                          }] : [])}
+                    - name: ${parameters.containerName}
                       image: ${workload.containers[parameters.containerName].image}
                       imagePullPolicy: ${parameters.imagePullPolicy}
-                      name: ${parameters.containerName}
+                      command: |
+                        ${has(workload.containers[parameters.containerName].command) ? workload.containers[parameters.containerName].command : oc_omit()}
+                      args: |
+                        ${has(workload.containers[parameters.containerName].args) ? workload.containers[parameters.containerName].args : oc_omit()}
                       resources:
-                        limits:
-                          cpu: ${parameters.resources.limits.cpu}
-                          memory: ${parameters.resources.limits.memory}
                         requests:
-                          cpu: ${parameters.resources.requests.cpu}
-                          memory: ${parameters.resources.requests.memory}
-                      volumeMounts: |
-                        ${has(configurations[parameters.containerName].configs.files) && configurations[parameters.containerName].configs.files.size() > 0 || has(configurations[parameters.containerName].secrets.files) && configurations[parameters.containerName].secrets.files.size() > 0 ?
-                          (has(configurations[parameters.containerName].configs.files) && configurations[parameters.containerName].configs.files.size() > 0 ?
-                            configurations[parameters.containerName].configs.files.map(f, {
-                              "name": "file-mount-"+oc_hash(f.mountPath+"/"+f.name),
-                              "mountPath": f.mountPath+"/"+f.name ,
-                              "subPath": f.name
-                            }) : []) +
-                           (has(configurations[parameters.containerName].secrets.files) && configurations[parameters.containerName].secrets.files.size() > 0 ?
-                            configurations[parameters.containerName].secrets.files.map(f, {
-                              "name": "file-mount-"+oc_hash(f.mountPath+"/"+f.name),
-                              "mountPath": f.mountPath+"/"+f.name,
-                              "subPath": f.name
-                            }) : [])
-                        : oc_omit()}
-                  restartPolicy: ${parameters.restartPolicy}
-                  volumes: |
-                    ${has(configurations[parameters.containerName].configs.files) && configurations[parameters.containerName].configs.files.size() > 0 || has(configurations[parameters.containerName].secrets.files) && configurations[parameters.containerName].secrets.files.size() > 0 ?
-                      (has(configurations[parameters.containerName].configs.files) && configurations[parameters.containerName].configs.files.size() > 0 ?
-                        configurations[parameters.containerName].configs.files.map(f, {
-                          "name": "file-mount-"+oc_hash(f.mountPath+"/"+f.name),
-                          "configMap": {
-                            "name": oc_generate_name(metadata.name, "config", f.name).replace(".", "-")
-                          }
-                        }) : []) +
-                       (has(configurations[parameters.containerName].secrets.files) && configurations[parameters.containerName].secrets.files.size() > 0 ?
-                        configurations[parameters.containerName].secrets.files.map(f, {
-                          "name": "file-mount-"+oc_hash(f.mountPath+"/"+f.name),
-                          "secret": {
-                            "secretName": oc_generate_name(metadata.name, "secret", f.name).replace(".", "-")
-                          }
-                        }) : [])
-                    : oc_omit()}
-          schedule: ${parameters.schedule}
-          successfulJobsHistoryLimit: ${parameters.successfulJobsHistoryLimit}
+                          cpu: ${envOverrides.resources.requests.cpu}
+                          memory: ${envOverrides.resources.requests.memory}
+                        limits:
+                          cpu: ${envOverrides.resources.limits.cpu}
+                          memory: ${envOverrides.resources.limits.memory}
+                      envFrom: ${configurations.toContainerEnvFrom(parameters.containerName)}
+                      volumeMounts: ${configurations.toContainerVolumeMounts(parameters.containerName)}
+                  volumes: ${configurations.toVolumes()}
+
     - id: env-config
-      includeWhen: ${has(configurations[parameters.containerName].configs.envs) && configurations[parameters.containerName].configs.envs.size()
-        > 0}
+      forEach: ${configurations.toConfigEnvsByContainer()}
+      var: envConfig
       template:
         apiVersion: v1
-        data: |
-          ${has(configurations[parameters.containerName].configs.envs) ? configurations[parameters.containerName].configs.envs.transformMapEntry(index, env, {env.name: env.value}) : oc_omit()}
         kind: ConfigMap
         metadata:
-          name: ${oc_generate_name(metadata.name, "env-configs")}
+          name: ${envConfig.resourceName}
           namespace: ${metadata.namespace}
-    - forEach: ${configurations[parameters.containerName].configs.files}
-      id: file-config
-      includeWhen: ${has(configurations[parameters.containerName].configs.files) &&
-        configurations[parameters.containerName].configs.files.size() > 0}
+        data: |
+          ${envConfig.envs.transformMapEntry(index, env, {env.name: env.value})}
+    - id: file-config
+      forEach: ${configurations.toConfigFileList()}
+      var: config
       template:
         apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${config.resourceName}
+          namespace: ${metadata.namespace}
         data:
           ${config.name}: |
             ${config.value}
-        kind: ConfigMap
-        metadata:
-          name: ${oc_generate_name(metadata.name, "config", config.name).replace(".",
-            "-")}
-          namespace: ${metadata.namespace}
-      var: config
     - id: secret-env-external
-      includeWhen: ${has(configurations[parameters.containerName].secrets.envs) && configurations[parameters.containerName].secrets.envs.size()
-        > 0}
+      forEach: ${configurations.toSecretEnvsByContainer()}
+      var: secretEnv
       template:
         apiVersion: external-secrets.io/v1
         kind: ExternalSecret
         metadata:
-          name: ${oc_generate_name(metadata.name, "env-secrets")}
+          name: ${secretEnv.resourceName}
           namespace: ${metadata.namespace}
         spec:
+          refreshInterval: 15s
+          secretStoreRef:
+            name: ${dataplane.secretStore}
+            kind: ClusterSecretStore
+          target:
+            name: ${secretEnv.resourceName}
+            creationPolicy: Owner
           data: |
-            ${has(configurations[parameters.containerName].secrets.envs) ? configurations[parameters.containerName].secrets.envs.map(secret, {
+            ${secretEnv.envs.map(secret, {
               "secretKey": secret.name,
               "remoteRef": {
                 "key": secret.remoteRef.key,
-                "property": has(secret.remoteRef.property) ? secret.remoteRef.property: oc_omit()
+                "property": has(secret.remoteRef.property) ? secret.remoteRef.property : oc_omit()
               }
-            }) : oc_omit()}
-          refreshInterval: 15s
-          secretStoreRef:
-            kind: ClusterSecretStore
-            name: ${dataplane.secretStore}
-          target:
-            creationPolicy: Owner
-            name: ${oc_generate_name(metadata.name, "env-secrets")}
-    - forEach: ${configurations[parameters.containerName].secrets.files}
-      id: secret-file-external
-      includeWhen: ${has(configurations[parameters.containerName].secrets.files) &&
-        configurations[parameters.containerName].secrets.files.size() > 0}
+            })}
+    - id: secret-file-external
+      forEach: ${configurations.toSecretFileList()}
+      var: file
       template:
         apiVersion: external-secrets.io/v1
         kind: ExternalSecret
         metadata:
-          name: ${oc_generate_name(metadata.name, "secret", file.name).replace(".",
-            "-")}
+          name: ${file.resourceName}
           namespace: ${metadata.namespace}
         spec:
+          refreshInterval: 15s
+          secretStoreRef:
+            name: ${dataplane.secretStore}
+            kind: ClusterSecretStore
+          target:
+            name: ${file.resourceName}
+            creationPolicy: Owner
           data:
-            - remoteRef:
+            - secretKey: ${file.name}
+              remoteRef:
                 key: ${file.remoteRef.key}
                 property: |
                   ${has(file.remoteRef.property) ? file.remoteRef.property : oc_omit()}
-              secretKey: ${file.name}
-          refreshInterval: 15s
-          secretStoreRef:
-            kind: ClusterSecretStore
-            name: ${dataplane.secretStore}
-          target:
-            creationPolicy: Owner
-            name: ${oc_generate_name(metadata.name, "secret", file.name).replace(".",
-              "-")}
-      var: file
-  schema:
-    envOverrides:
-      resources: ResourceRequirements | default={}
-      schedule: string | default="0 0 31 2 *"
-    parameters:
-      activeDeadlineSeconds: integer | default=300
-      backoffLimit: integer | default=3
-      concurrencyPolicy: string | default=Forbid
-      containerName: string | default=main
-      failedJobsHistoryLimit: integer | default=1
-      imagePullPolicy: string | default=IfNotPresent
-      restartPolicy: string | default=OnFailure
-      successfulJobsHistoryLimit: integer | default=3
-    types:
-      ResourceQuantity:
-        cpu: string | default=100m
-        memory: string | default=128Mi
-      ResourceRequirements:
-        limits: ResourceQuantity | default={}
-        requests: ResourceQuantity | default={}
-  workloadType: cronjob
