@@ -1,26 +1,45 @@
 # Sample Release Config for OpenChoreo GitOps CLI
-# This config file controls where release files are written for each component
+# This config file controls where release and binding files are written for each component
 
 apiVersion: openchoreo.dev/v1alpha1
 kind: ReleaseConfig
 
-# Global default output directory
-# Used when component/project not found in config
-# Defaults to "." (current directory) if not specified
-defaultOutputDir: ./releases
+# ComponentRelease output configuration
+componentReleaseDefaults:
+  # Global default output directory
+  # Used when component/project not found in config
+  # Defaults to "." (current directory) if not specified
+  defaultOutputDir: ./releases
 
-# Project-specific configurations
-projects:
-  demo-project-1:
-    # Default output for all components in this project
-    defaultOutputDir: ./projects/demo-project-1/releases
-    # Component-specific overrides within this project
-    components:
-      greeter-service: ./projects/demo-project-1/components/greeter-service/releases
+  # Project-specific configurations
+  projects:
+    demo-project-1:
+      # Default output for all components in this project
+      defaultOutputDir: ./projects/demo-project-1/releases
+      # Component-specific overrides within this project
+      components:
+        greeter-service: ./projects/demo-project-1/components/greeter-service/releases
 
-  ecommerce-demo:
-    defaultOutputDir: ./projects/ecommerce-demo/releases
-    components:
-      order-api: ./projects/ecommerce-demo/components/order-api/releases
-      product-api: ./projects/ecommerce-demo/components/product-api/releases
-      redis-cache: ./projects/ecommerce-demo/components/redis-cache/releases
+    ecommerce-demo:
+      defaultOutputDir: ./projects/ecommerce-demo/releases
+      components:
+        order-api: ./projects/ecommerce-demo/components/order-api/releases
+        product-api: ./projects/ecommerce-demo/components/product-api/releases
+        redis-cache: ./projects/ecommerce-demo/components/redis-cache/releases
+
+# ReleaseBinding output configuration
+releaseBindingDefaults:
+  defaultOutputDir: ./bindings
+
+  projects:
+    demo-project-1:
+      defaultOutputDir: ./projects/demo-project-1/bindings
+      components:
+        greeter-service: ./projects/demo-project-1/components/greeter-service/release-bindings
+
+    ecommerce-demo:
+      defaultOutputDir: ./projects/ecommerce-demo/bindings
+      components:
+        order-api: ./projects/ecommerce-demo/components/order-api/release-bindings
+        product-api: ./projects/ecommerce-demo/components/product-api/release-bindings
+        redis-cache: ./projects/ecommerce-demo/components/redis-cache/release-bindings
