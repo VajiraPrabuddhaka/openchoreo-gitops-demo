@@ -6,29 +6,23 @@ metadata:
 spec:
   workloadType: deployment
 
-  allowedWorkflows:
-    - google-cloud-buildpacks
-    - ballerina-buildpack
-    - docker
-
   schema:
-    types:
-      ResourceRequirements:
-        requests: "ResourceQuantity | default={}"
-        limits: "ResourceQuantity | default={}"
-      ResourceQuantity:
-        cpu: "string | default=100m"
-        memory: "string | default=256Mi"
-
     parameters:
       replicas: "integer | default=1"
       imagePullPolicy: "string | default=IfNotPresent"
       port: "integer | default=80"
-      exposed: "boolean | default=false"
-      containerName: "string | default=main"
 
     envOverrides:
-      resources: "ResourceRequirements | default={}"
+      resources:
+        $default: {}
+        requests:
+          $default: {}
+          cpu: "string | default=100m"
+          memory: "string | default=256Mi"
+        limits:
+          $default: {}
+          cpu: "string | default=1000m"
+          memory: "string | default=1Gi"
 
   resources:
     - id: deployment
@@ -48,13 +42,9 @@ spec:
               labels: ${metadata.podSelectors}
             spec:
               containers:
-                - name: ${parameters.containerName}
-                  image: ${workload.containers[parameters.containerName].image}
+                - name: app
+                  image: ${workload.containers["app"].image}
                   imagePullPolicy: ${parameters.imagePullPolicy}
-                  command: |
-                    ${has(workload.containers[parameters.containerName].command) ? workload.containers[parameters.containerName].command : oc_omit()}
-                  args: |
-                    ${has(workload.containers[parameters.containerName].args) ? workload.containers[parameters.containerName].args : oc_omit()}
                   ports:
                     - name: http
                       containerPort: ${parameters.port}
@@ -66,16 +56,13 @@ spec:
                     limits:
                       cpu: ${envOverrides.resources.limits.cpu}
                       memory: ${envOverrides.resources.limits.memory}
-                  envFrom: ${configurations.toContainerEnvFrom(parameters.containerName)}
-                  volumeMounts: ${configurations.toContainerVolumeMounts(parameters.containerName)}
-              volumes: ${configurations.toVolumes()}
 
     - id: service
       template:
         apiVersion: v1
         kind: Service
         metadata:
-          name: ${metadata.componentName}
+          name: ${metadata.name}
           namespace: ${metadata.namespace}
           labels: ${metadata.labels}
         spec:
@@ -86,8 +73,8 @@ spec:
               port: 80
               targetPort: ${parameters.port}
               protocol: TCP
+
     - id: httproute
-      includeWhen: ${parameters.exposed == true}
       template:
         apiVersion: gateway.networking.k8s.io/v1
         kind: HTTPRoute
@@ -105,7 +92,8 @@ spec:
             - matches:
                 - path:
                     type: PathPrefix
-                    value: /${metadata.componentName}
+                    value: /${metadata.name}
+                  method: GET
               filters:
                 - type: URLRewrite
                   urlRewrite:
@@ -113,76 +101,5 @@ spec:
                       type: ReplacePrefixMatch
                       replacePrefixMatch: /
               backendRefs:
-                - name: ${metadata.componentName}
+                - name: ${metadata.name}
                   port: 80
-    - id: env-config
-      forEach: ${configurations.toConfigEnvsByContainer()}
-      var: envConfig
-      template:
-        apiVersion: v1
-        kind: ConfigMap
-        metadata:
-          name: ${envConfig.resourceName}
-          namespace: ${metadata.namespace}
-        data: |
-          ${envConfig.envs.transformMapEntry(index, env, {env.name: env.value})}
-    - id: file-config
-      forEach: ${configurations.toConfigFileList()}
-      var: config
-      template:
-        apiVersion: v1
-        kind: ConfigMap
-        metadata:
-          name: ${config.resourceName}
-          namespace: ${metadata.namespace}
-        data:
-          ${config.name}: |
-            ${config.value}
-    - id: secret-env-external
-      forEach: ${configurations.toSecretEnvsByContainer()}
-      var: secretEnv
-      template:
-        apiVersion: external-secrets.io/v1
-        kind: ExternalSecret
-        metadata:
-          name: ${secretEnv.resourceName}
-          namespace: ${metadata.namespace}
-        spec:
-          refreshInterval: 15s
-          secretStoreRef:
-            name: ${dataplane.secretStore}
-            kind: ClusterSecretStore
-          target:
-            name: ${secretEnv.resourceName}
-            creationPolicy: Owner
-          data: |
-            ${secretEnv.envs.map(secret, {
-              "secretKey": secret.name,
-              "remoteRef": {
-                "key": secret.remoteRef.key,
-                "property": has(secret.remoteRef.property) ? secret.remoteRef.property : oc_omit()
-              }
-            })}
-    - id: secret-file-external
-      forEach: ${configurations.toSecretFileList()}
-      var: file
-      template:
-        apiVersion: external-secrets.io/v1
-        kind: ExternalSecret
-        metadata:
-          name: ${file.resourceName}
-          namespace: ${metadata.namespace}
-        spec:
-          refreshInterval: 15s
-          secretStoreRef:
-            name: ${dataplane.secretStore}
-            kind: ClusterSecretStore
-          target:
-            name: ${file.resourceName}
-            creationPolicy: Owner
-          data:
-            - secretKey: ${file.name}
-              remoteRef:
-                key: ${file.remoteRef.key}
-                property: |
-                  ${has(file.remoteRef.property) ? file.remoteRef.property : oc_omit()}
