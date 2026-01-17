@@ -1,0 +1,9 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: DeploymentPipeline
+metadata:
+  name: simple-pipeline
+  namespace: default
+spec:
+  promotionPaths:
+    - source: development
+      target: production

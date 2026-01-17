@@ -13,6 +13,10 @@ componentReleaseDefaults:
 
   # Project-specific configurations
   projects:
+    demo-project:
+      defaultOutputDir: ./projects/demo-project/releases
+      components:
+        test-component: ./projects/demo-project/components/greeter-service/releases
     demo-project-1:
       # Default output for all components in this project
       defaultOutputDir: ./projects/demo-project-1/releases
@@ -32,6 +36,11 @@ releaseBindingDefaults:
   defaultOutputDir: ./bindings
 
   projects:
+    demo-project:
+      defaultOutputDir: ./projects/demo-project/bindings
+      components:
+        test-component: ./projects/demo-project/components/greeter-service/release-bindings
+
     demo-project-1:
       defaultOutputDir: ./projects/demo-project-1/bindings
       components:
