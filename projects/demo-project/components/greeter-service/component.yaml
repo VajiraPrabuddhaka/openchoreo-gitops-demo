@@ -2,7 +2,7 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: Component
 metadata:
   name: greeter-service
-  namespace: default
+  namespace: openchoreo
 spec:
   owner:
     projectName: demo-project
