@@ -2,10 +2,10 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: Component
 metadata:
   name: greeter-service-gitops
-  namespace: openchoreo
+  namespace: default
 spec:
   owner:
-    projectName: demo-project
+    projectName: demo-project-gitops
   componentType: deployment/service
   workflow:
     name: docker-gitops
