@@ -2,7 +2,7 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: Project
 metadata:
   name: demo-project
-  namespace: openchoreo
+  namespace: default
 spec:
   displayName: "Demo Project"
   deploymentPipelineRef:
