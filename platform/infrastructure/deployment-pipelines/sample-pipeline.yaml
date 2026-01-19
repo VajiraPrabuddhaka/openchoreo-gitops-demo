@@ -5,5 +5,11 @@ metadata:
   namespace: default
 spec:
   promotionPaths:
-    - source: development
-      target: production
+    - sourceEnvironmentRef: development
+      targetEnvironmentRefs:
+        - name: staging
+          requiresApproval: false
+    - sourceEnvironmentRef: staging
+      targetEnvironmentRefs:
+        - name: production
+          requiresApproval: true
