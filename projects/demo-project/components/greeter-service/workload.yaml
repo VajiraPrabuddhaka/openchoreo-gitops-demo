@@ -1,0 +1,16 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: greeter-service-gitops-workload
+  namespace: default
+spec:
+  containers:
+    main:
+      image: host.k3d.internal:10082/demo-project-greeter-service-image:v1-b1e72d38
+  endpoints:
+    greeter-api:
+      port: 9090
+      type: REST
+  owner:
+    componentName: greeter-service-gitops
+    projectName: demo-project-gitops
