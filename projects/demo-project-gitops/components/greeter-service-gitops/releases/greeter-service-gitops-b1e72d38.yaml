@@ -1,0 +1,110 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: ComponentRelease
+metadata:
+  name: greeter-service-gitops-b1e72d38
+  namespace: default
+spec:
+  componentProfile:
+    parameters: null
+  componentType:
+    resources:
+    - id: deployment
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          labels: ${metadata.labels}
+          name: ${metadata.name}
+          namespace: ${metadata.namespace}
+        spec:
+          replicas: ${parameters.replicas}
+          selector:
+            matchLabels: ${metadata.podSelectors}
+          template:
+            metadata:
+              labels: ${metadata.podSelectors}
+            spec:
+              containers:
+              - image: ${workload.containers["app"].image}
+                imagePullPolicy: ${parameters.imagePullPolicy}
+                name: app
+                ports:
+                - containerPort: ${parameters.port}
+                  name: http
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: ${envOverrides.resources.limits.cpu}
+                    memory: ${envOverrides.resources.limits.memory}
+                  requests:
+                    cpu: ${envOverrides.resources.requests.cpu}
+                    memory: ${envOverrides.resources.requests.memory}
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          labels: ${metadata.labels}
+          name: ${metadata.name}
+          namespace: ${metadata.namespace}
+        spec:
+          ports:
+          - name: http
+            port: 80
+            protocol: TCP
+            targetPort: ${parameters.port}
+          selector: ${metadata.podSelectors}
+          type: ClusterIP
+    - id: httproute
+      template:
+        apiVersion: gateway.networking.k8s.io/v1
+        kind: HTTPRoute
+        metadata:
+          labels: ${metadata.labels}
+          name: ${metadata.name}
+          namespace: ${metadata.namespace}
+        spec:
+          hostnames:
+          - ${metadata.environmentName}.${dataplane.publicVirtualHost}
+          parentRefs:
+          - name: gateway-default
+            namespace: openchoreo-data-plane
+          rules:
+          - backendRefs:
+            - name: ${metadata.name}
+              port: 80
+            filters:
+            - type: URLRewrite
+              urlRewrite:
+                path:
+                  replacePrefixMatch: /
+                  type: ReplacePrefixMatch
+            matches:
+            - method: GET
+              path:
+                type: PathPrefix
+                value: /${metadata.name}
+    schema:
+      envOverrides:
+        resources:
+          $default: {}
+          limits:
+            $default: {}
+            cpu: string | default=1000m
+            memory: string | default=1Gi
+          requests:
+            $default: {}
+            cpu: string | default=100m
+            memory: string | default=256Mi
+      parameters:
+        imagePullPolicy: string | default=IfNotPresent
+        port: integer | default=80
+        replicas: integer | default=1
+    workloadType: deployment
+  owner:
+    componentName: greeter-service-gitops
+    projectName: demo-project-gitops
+  workload:
+    containers:
+      main:
+        image: host.k3d.internal:10082/demo-project-gitops-greeter-service-gitops-image:v1-b1e72d38
