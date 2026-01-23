@@ -18,6 +18,7 @@ componentReleaseDefaults:
       components:
         greeter-service-gitops: ./projects/demo-project-gitops/components/greeter-service-gitops/releases
         reading-list-service-gitops: ./projects/demo-project-gitops/components/reading-list-service-gitops/releases
+        react-starter-gitops: ./projects/demo-project-gitops/components/react-starter-gitops/releases
     demo-project-1:
       # Default output for all components in this project
       defaultOutputDir: ./projects/demo-project-1/releases
